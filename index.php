@@ -32,6 +32,10 @@
 			width: 99%;
 			font-family: monospace;
 			font-size: 11pt;
+			white-space: nowrap;
+		}
+		#raw textarea:disabled{
+			color: #BCBCBC;
 		}
 		#raw span{
 			position: absolute;
@@ -40,6 +44,10 @@
 			color: blue;
 			cursor: pointer;
 			
+		}
+		#loadingRawSaving{
+			display: none;
+			margin-right: 130px;	
 		}
 		span.blue{
 			color:blue;
@@ -143,6 +151,7 @@
 	}
 
 	function ViewRawOracle(type, index, elem) {
+		$('#savelink').hide();
 		$('#overlay').show();
 		$('#raw').show();
 		if (type === 'component') {
@@ -157,9 +166,14 @@
 		}
 	}
 
-	function ViewRaw(type, index) {
+	function ViewRaw(type, index, elem) {
+		var columnType = $(elem).closest('tr').find('span.componentItemColumnType').text();
+
+		$('#savelink').show();
 		$('#overlay').show();
 		$('#raw').show();
+		$('#savelink').attr('onclick', 'Save(\''+ type +'\', '+ index +', \''+ columnType +'\')');
+
 		if (type === 'component') {
 			$('#raw textarea').val(decodeEntities(data.component[index].RAWMODCOMPONENTTYPEQUERY));
 
@@ -175,6 +189,56 @@
 		$('#overlay').hide();
 		$('#raw').hide();
 		$('#raw textarea').val('');
+	}
+
+	function Save(type, index, columnType) {
+		var textarea = $('#raw textarea');
+		var loadingLabel = $('#loadingRawSaving');
+
+		textarea.prop('disabled', true);
+		loadingLabel.show();
+
+		if (type === 'componentItem') {
+			$.ajax({
+				url:'process.php',
+				type:'post',
+				data:{
+					task: 'saveComponentItem',
+					query: textarea.val(),
+					type: type,
+					id: data.item[index].ITEMID,
+					columnType: columnType
+				}
+			})
+			.done(function(data){
+				console.log(data);
+			});
+		}
+		else if (type === 'component') {
+			$.ajax({
+				url:'process.php',
+				type:'post',
+				data:{
+					task: 'saveComponent',
+					query: textarea.val(),
+					type: type,
+					id: data.component[index].COMPONENTID
+				},
+				dataType: 'json'
+			})
+			.done(function(data){
+				if (!data.error) {
+					_SaveSuccessAction(loadingLabel, textarea);
+				}
+			});
+		}
+	}
+
+	function _SaveSuccessAction(loadingLabel, textarea) {
+		textarea.prop('disabled', false);
+		loadingLabel.css('color','green').text('Saved!').fadeOut(2000, function(){
+			loadingLabel.css('color','').text('Loading...');
+		});
 	}
 
 	function Submit() {
@@ -220,7 +284,7 @@
 				for (var i = 0; i < data.component.length; i++) {
 					if (data.component[i]['COMPONENTTYPEQUERY'] !== null && data.component[i]['COMPONENTTYPEQUERY'] !== '') {
 						var tag = '';
-						var mod = '';
+						var match = '';
 
 						// jika ada error
 						var errormessage = '';
@@ -230,11 +294,16 @@
 							errormessage = '<span style="color:red">'+ error[0] + ' : ' + error[2] +'</span>';
 						}
 
+						// check if match
+						if (data.component[i]['COMPONENTTYPEQUERY'] === data.component[i]['MODCOMPONENTTYPEQUERY']) {
+							match = '<span class="match">MATCH</span>';
+						}
+
 						tag = data.component[i]['SUCCESSCOMPONENTTYPEQUERY'] ? '<span class="ok">OK</span> ' : '<span class="fail">FAILED</span> ';
 
-						html += '<tr class="title"><td colspan="2">';
-						html += '<input style="float:right; margin-right:3px" type="button" onclick="ReplaceComponent('+ i +', this)" value="Commit Replace"/> <input style="float:right; margin-right:3px" type="button" value="Ignore"/> <input style="float:right; margin-right:3px" type="button" onclick="ViewRaw(\'component\','+i+')" value="View Raw"/>';
-						html += '<b>[ID : '+ data.component[i].COMPONENTID +'] </b> <input type="button" onclick="ViewRawOracle(\'component\','+i+')" value="View Raw"/>'+ tag +' <br/>'+ errormessage +'</td></tr>';
+						html += '<tr class="title" data-index="'+i+'"><td colspan="2">';
+						html += '<input style="float:right; margin-right:3px" type="button" onclick="ReplaceComponent('+ i +', this)" value="Commit Replace"/> <input style="float:right; margin-right:3px" type="button" value="Ignore"/> <input style="float:right; margin-right:3px" type="button" onclick="ViewRaw(\'component\','+i+', this)" value="View Raw"/>';
+						html += '<b>[ID : '+ data.component[i].COMPONENTID +'] </b> <input type="button" onclick="ViewRawOracle(\'component\','+i+')" value="View Raw"/>'+ match + tag +' <br/>'+ errormessage +'</td></tr>';
 
 						html += '<tr>';
 						html += '<td>'+ data.component[i]['COMPONENTTYPEQUERY'] +'</td>';
@@ -298,8 +367,8 @@
 										// jika match
 										match = (match) ? '<span class="match">MATCH</span>' : '';
 
-										html += '<tr class="title"><td colspan="2">';
-										html += '<input style="float:right; margin-right:3px" type="button" onclick="ReplaceComponentItem('+ i +', this)" value="Commit Replace"/> <input style="float:right; margin-right:3px" type="button" value="Ignore"/>  <input style="float:right; margin-right:3px" type="button" onclick="ViewRaw(\'componentItem\','+i+')" value="View Raw"/>';
+										html += '<tr class="title" data-index="'+i+'"><td colspan="2">';
+										html += '<input style="float:right; margin-right:3px" type="button" onclick="ReplaceComponentItem('+ i +', this)" value="Commit Replace"/> <input style="float:right; margin-right:3px" type="button" value="Ignore"/>  <input style="float:right; margin-right:3px" type="button" onclick="ViewRaw(\'componentItem\','+i+', this)" value="View Raw"/>';
 										html += '<b>[ID : <span class="itemid">'+ data.item[i].ITEMID +'</span>] [<span class="componentItemColumnType">'+ key +'</span>]</b> <input type="button" onclick="ViewRawOracle(\'componentItem\','+i+',this)" value="View Raw"/>'+ match + tag +' <br/>'+ errormessage +'</td></tr>';
 
 										html += '<tr>';
@@ -342,8 +411,8 @@
 
 						tag = data.bl[i]['SUCCESS'] ? '<span class="ok">OK</span> ' : '<span class="fail">FAILED</span> ';
 
-						html += '<tr class="title"><td colspan="2">';
-						html += '<input style="float:right; margin-right:3px" type="button" value="Commit Replace"/> <input style="float:right; margin-right:3px" type="button" value="Ignore"/> <input style="float:right; margin-right:3px" type="button" onclick="ViewRaw(\'bl\','+i+')" value="View Raw"/>';
+						html += '<tr class="title" data-index="'+i+'"><td colspan="2">';
+						html += '<input style="float:right; margin-right:3px" type="button" value="Commit Replace"/> <input style="float:right; margin-right:3px" type="button" value="Ignore"/> <input style="float:right; margin-right:3px" type="button" onclick="ViewRaw(\'bl\','+i+', this)" value="View Raw"/>';
 						html += '<b>[ID : '+ data.bl[i].BLID +'] ['+ data.bl[i].BLNAME +']</b> <input type="button" onclick="ViewRawOracle(\'bl\','+i+')" value="View Raw"/>'+ tag +' <br/>'+ errormessage +'</td></tr>';
 
 						html += '<tr>';
@@ -366,6 +435,26 @@
 
 	function ReplaceComponent(index, elem) {
 		_ReplaceLoading(elem);
+		_DisableAllButtons(elem);
+
+		var buttonTr = $(elem).closest('tr');
+		var componentId = data.component[index].COMPONENTID;
+		var query = data.component[index].RAWMODCOMPONENTTYPEQUERY;
+
+		$.ajax({
+			url:'process.php',
+			data:{
+				task:'replaceComponent',
+				componentId:componentId,
+				query:query
+			},
+			type:'post',
+			dataType:'json'
+		})
+		.done(function(data){
+			//console.log(data);
+			_CommitReplaceNotification(data, buttonTr, elem);
+		});
 	}
 
 	function ReplaceComponentItem(index, elem) {
@@ -388,27 +477,31 @@
 			dataType:'json'
 		})
 		.done(function(data){
-			// jika failed
-			if (!data.success) {
-				if (data.matched) {
-					alert(data.error);
-				} else {
-					alert("Replace Failed!\n\n" + data.error[0][0] + ' : ' + data.error[0][2]);
-				}
-			}
-			// jika berjaya
-			else {
-				buttonTr.next('tr').find('td').each(function(){
-					$(this).text(data.query);
-				});
-
-				$(elem).next().next().after('<span class="match">MATCH</span>');
-				alert("Successfully Replaced!");
-			}
-
-			// reset
-			_ResetReplace(elem);
+			_CommitReplaceNotification(data, buttonTr, elem);
 		});
+	}
+
+	function _CommitReplaceNotification(data, buttonTr, elem) {
+		// jika failed
+		if (!data.success) {
+			if (data.matched) {
+				alert(data.error);
+			} else {
+				alert("Replace Failed!\n\n" + data.error[0][0] + ' : ' + data.error[0][2]);
+			}
+		}
+		// jika berjaya
+		else {
+			buttonTr.next('tr').find('td').each(function(){
+				$(this).html(data.query).text();
+			});
+
+			$(elem).next().next().after('<span class="match">MATCH</span>');
+			alert("Successfully Replaced!");
+		}
+
+		// reset
+		_ResetReplace(elem);
 	}
 
 	function _ReplaceLoading(elem) {
@@ -473,6 +566,11 @@
 	</table>
 
 	<div id="overlay"></div>
-	<div id="raw"><span onclick="Close()">CLOSE</span><textarea></textarea></div>
+	<div id="raw">
+		<span id="savelink" style="margin-right:70px; text-align:right" onclick="Save()">SAVE</span>
+		<span onclick="Close()">CLOSE</span>
+		<textarea></textarea>
+		<span id="loadingRawSaving">Loading...</span>
+	</div>
 </body>
 </html>

@@ -303,4 +303,96 @@ elseif ($task == 'replaceComponentItem') {
 	echo json_encode($result);
 }
 
+elseif ($task == 'saveComponentItem') {
+	$result = array(
+			'success' => false,
+			'error' => null
+	);
+
+	$columnName = $_POST['columnType'];
+	$itemId = $_POST['id'];
+
+	$originalQuery = $_POST['query'];
+	$query = str_replace("'", "''", $originalQuery);
+
+	$conn = sqlsrv_connect($serverName, $connectionInfo);
+
+	$updateQuery = "update FLC_PAGE_COMPONENT_ITEMS set " . $columnName . " = '". $query ."' WHERE ITEMID = " . $itemId;
+	$stmt = sqlsrv_query($conn, $updateQuery);
+
+	if ($stmt) {
+		$result['success'] = true;
+		$result['query'] = $originalQuery;
+
+	} elseif (!$stmt) {
+		$result['success'] = false;
+		$result['error'] = sqlsrv_errors();
+	}
+
+	sqlsrv_close($conn);
+
+	echo json_encode($result);
+}
+
+elseif ($task == 'saveComponent') {
+	$result = array(
+			'success' => false,
+			'error' => null
+	);
+
+	$componentId = $_POST['id'];
+
+	$originalQuery = $_POST['query'];
+	$query = str_replace("'", "''", $originalQuery);
+
+	$conn = sqlsrv_connect($serverName, $connectionInfo);
+
+	$updateQuery = "update FLC_PAGE_COMPONENT set COMPONENTTYPEQUERY = '". $query ."' WHERE COMPONENTID = " . $componentId;
+	$stmt = sqlsrv_query($conn, $updateQuery);
+
+	if ($stmt) {
+		$result['success'] = true;
+		$result['query'] = $originalQuery;
+
+	} elseif (!$stmt) {
+		$result['success'] = false;
+		$result['error'] = sqlsrv_errors();
+	}
+
+	sqlsrv_close($conn);
+
+	echo json_encode($result);
+}
+
+elseif ($task == 'replaceComponent') {
+	$result = array(
+			'success' => false,
+			'error' => null
+	);
+
+	$id = $_POST['componentId'];
+	$originalQuery = $_POST['query'];
+
+	$query = htmlspecialchars_decode($_POST['query']);
+	$query = str_replace("'", "''", $query);
+
+	$conn = sqlsrv_connect($serverName, $connectionInfo);
+
+	$updateQuery = "update FLC_PAGE_COMPONENT set COMPONENTTYPEQUERY = '". $query ."' WHERE COMPONENTID = " . $id;
+	$stmt = sqlsrv_query($conn, $updateQuery);
+
+	if ($stmt) {
+		$result['success'] = true;
+		$result['query'] = $originalQuery;
+
+	} elseif (!$stmt) {
+		$result['success'] = false;
+		$result['error'] = sqlsrv_errors();
+	}
+
+	sqlsrv_close($conn);
+
+	echo json_encode($result);
+}
+
 ?>
